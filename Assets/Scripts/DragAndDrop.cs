@@ -1,121 +1,170 @@
 using UnityEngine;
 
+/// <summary>
+/// Manages drag-and-drop functionality for objects, including snapping to slots and maintaining original positions.
+/// </summary>
 public class DragAndDrop : MonoBehaviour
 {
-    private Vector3 startLocalPosition; // המיקום ההתחלתי היחסי להורה
-    private Vector3 originalScale; // הגודל המקורי של הפריט
-    private int originalSortingOrder; // הערך המקורי של הסדר בשכבה (Sorting Order)
+    // Original local position relative to the parent object
+    private Vector3 startLocalPosition;
+
+    // Original scale of the object
+    private Vector3 originalScale;
+
+    // Original sorting order of the object's sprite
+    private int originalSortingOrder;
 
     [Header("Scaling Settings")]
-    public float scaleFactor = 1.9f; // גורם ההגדלה בזמן גרירה, ניתן לשינוי באינספקטור
-    public Vector3 slotScale = new Vector3(130, 130, 1); // הגודל כאשר הפריט ננעל ב-Slot
+    [Tooltip("Scale factor when the object is being dragged.")]
+    public float scaleFactor; // Assigned in the Inspector
+
+    [Tooltip("Object scale when it snaps to the correct slot.")]
+    public Vector3 slotScale; // Assigned in the Inspector
 
     [Header("Snapping Settings")]
-    public float snapDistance = 50f; // מרחק שמאפשר הצמדה לנקודה הנכונה
-    private bool isInCorrectSlot = false; // האם הפריט נמצא במקום הנכון
-    private bool isDragging = false; // האם הפריט כרגע נגרר
-    private bool isTouchingSlot = false; // האם הפריט נוגע ב-Slot
+    [Tooltip("Maximum distance allowed for snapping to the correct slot.")]
+    public float snapDistance; // Assigned in the Inspector
 
-    public Transform correctSlot; // הסלוט הנכון של הפריט
+    // Whether the object is currently in the correct slot
+    private bool isInCorrectSlot = false;
 
-    private SpriteRenderer spriteRenderer; // רכיב ה-SpriteRenderer
+    // Whether the object is currently being dragged
+    private bool isDragging = false;
 
+    // Whether the object is currently touching the correct slot
+    private bool isTouchingSlot = false;
+
+    [Header("Slot Settings")]
+    [Tooltip("The correct slot to which this object should snap.")]
+    public Transform correctSlot; // Assigned in the Inspector
+
+    // Reference to the SpriteRenderer component
+    private SpriteRenderer spriteRenderer;
+
+    /// <summary>
+    /// Initializes the object's default settings, such as position, scale, and sorting order.
+    /// </summary>
     void Start()
     {
-        // שמור את המיקום ההתחלתי היחסי להורה
+        // Store the initial local position relative to the parent
         startLocalPosition = transform.localPosition;
 
-        // שמור את הגודל שהוגדר ב-Inspector
+        // Store the original scale as defined in the Inspector
         originalScale = transform.localScale;
-        // קבל את ה-SpriteRenderer ושמור את ה-sortingOrder המקורי
-        spriteRenderer = GetComponent<SpriteRenderer>(); //To get value of order layer
-        originalSortingOrder = spriteRenderer.sortingOrder; //To get value of order layer
 
-        Debug.Log($"Start Local Position: {startLocalPosition}"); // Debug למעקב
+        // Get the SpriteRenderer component and store its original sorting order
+        spriteRenderer = GetComponent<SpriteRenderer>();
+        originalSortingOrder = spriteRenderer.sortingOrder;
+
+        Debug.Log($"Start Local Position: {startLocalPosition}");
     }
 
+    /// <summary>
+    /// Updates the position of the object while it is being dragged.
+    /// </summary>
     void Update()
     {
         if (isDragging)
         {
             Vector3 newPosition;
-            if (Input.GetMouseButton(0)) // גרירה עם עכבר
+
+            // Update position based on mouse or touch input
+            if (Input.GetMouseButton(0))
             {
                 newPosition = Camera.main.ScreenToWorldPoint(Input.mousePosition);
             }
-            else if (Input.touchCount > 0) // גרירה עם מסך מגע
+            else if (Input.touchCount > 0)
             {
                 Touch touch = Input.GetTouch(0);
                 newPosition = Camera.main.ScreenToWorldPoint(touch.position);
             }
             else
             {
-                return; // אם אין לחיצה או מגע, אל תזיז את האובייקט
+                return; // Do not update if there's no input
             }
 
-            transform.position = new Vector3(newPosition.x, newPosition.y, 0); // עדכון מיקום, שמירה על Z = 0
+            // Set the new position while maintaining a Z value of 0
+            transform.position = new Vector3(newPosition.x, newPosition.y, 0);
         }
     }
 
+    /// <summary>
+    /// Called when the user clicks on the object to start dragging.
+    /// </summary>
     private void OnMouseDown()
     {
         if (!isInCorrectSlot)
         {
-            isDragging = true; // התחלת גרירה
-            transform.localScale = originalScale * scaleFactor; // הגדל את הפריט לפי ה-Scale Factor
+            isDragging = true;
 
-            // העלה את ה-sortingOrder בזמן הגרירה
+            // Scale up the object while dragging
+            transform.localScale = originalScale * scaleFactor;
+
+            // Increase sorting order so the object appears above others
             spriteRenderer.sortingOrder = 2;
 
-            Debug.Log("Started dragging."); // הודעה על תחילת הגרירה
+            Debug.Log("Started dragging.");
         }
     }
 
+    /// <summary>
+    /// Called when the user releases the object to stop dragging.
+    /// </summary>
     private void OnMouseUp()
     {
         if (!isInCorrectSlot)
         {
-            isDragging = false; // סיום גרירה
-            Debug.Log($"Released at Position: {transform.position}"); // הדפס את מיקום השחרור
+            isDragging = false;
+            Debug.Log($"Released at Position: {transform.position}");
 
-            // בדוק אם הפריט נוגע ב-Slot ומרחקו מתאים
+            // Check if the object is touching the correct slot and within snapping distance
             if (isTouchingSlot && Vector3.Distance(transform.position, correctSlot.position) < snapDistance)
             {
-                // הצמד למיקום הגלובלי של הסלוט
-                transform.position = correctSlot.position;
-                transform.localScale = slotScale; // שנה את הגודל ל-130x130x1
-                isInCorrectSlot = true; // עדכון סטטוס
-                Debug.Log($"Snapped to correct slot at Global Position: {correctSlot.position}"); // הודעה על נעילה ל-Slot
+                transform.position = correctSlot.position; // Snap to the slot
+                transform.localScale = slotScale; // Set the slot-specific scale
+                isInCorrectSlot = true;
+
+                Debug.Log($"Snapped to correct slot at Global Position: {correctSlot.position}");
             }
             else
             {
-                // החזר למיקום ההתחלתי היחסי להורה ושמור על הגודל המקורי
+                // Reset to the original local position and scale
                 transform.localPosition = startLocalPosition;
-                transform.localScale = originalScale; // חזרה לגודל המקורי
-                Debug.Log($"Returned to start Local Position: {startLocalPosition}"); // הדפס הודעה על חזרה למיקום ההתחלתי
+                transform.localScale = originalScale;
+
+                Debug.Log($"Returned to start Local Position: {startLocalPosition}");
             }
-            //Get order layer back to OG layer
+
+            // Reset sorting order to the original value
             spriteRenderer.sortingOrder = originalSortingOrder;
         }
     }
 
+    /// <summary>
+    /// Called when the object enters a trigger collider.
+    /// Updates the state if the object is touching the correct slot.
+    /// </summary>
+    /// <param name="other">The collider the object has entered.</param>
     private void OnTriggerEnter2D(Collider2D other)
     {
-        // בדוק אם הפריט נוגע ב-Slot הנכון
         if (other.transform == correctSlot)
         {
-            isTouchingSlot = true; // עדכון סטטוס של נגיעה ב-Slot
-            Debug.Log("Entered correct slot."); // הודעה על כניסה ל-Slot
+            isTouchingSlot = true;
+            Debug.Log("Entered correct slot.");
         }
     }
 
+    /// <summary>
+    /// Called when the object exits a trigger collider.
+    /// Updates the state if the object leaves the correct slot.
+    /// </summary>
+    /// <param name="other">The collider the object has exited.</param>
     private void OnTriggerExit2D(Collider2D other)
     {
-        // אם הפריט יוצא מה-Slot
         if (other.transform == correctSlot)
         {
-            isTouchingSlot = false; // עדכון סטטוס של יציאה מה-Slot
-            Debug.Log("Exited correct slot."); // הודעה על יציאה מ-Slot
+            isTouchingSlot = false;
+            Debug.Log("Exited correct slot.");
         }
     }
 }
