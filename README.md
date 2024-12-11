@@ -54,5 +54,6 @@ You can play the game online at the following link:
 
 ## How to Run Locally
 1. Clone the repository:
-   ```bash
+```bash
 git clone https://github.com/RehabGaming/Fix_The_Kingdom.git
+
