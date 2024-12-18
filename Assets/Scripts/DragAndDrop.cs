@@ -38,6 +38,10 @@ public class DragAndDrop : MonoBehaviour
     [Tooltip("The correct slot to which this object should snap.")]
     public Transform correctSlot; // Assigned in the Inspector
 
+    [Header("Progress Bar Reference")]
+    [Tooltip("Reference to the ProgressBarManager to initialize it.")]
+    public ProgressBarManager progressBarManager; // Reference to the ProgressBarManager
+
     // Reference to the SpriteRenderer component
     private SpriteRenderer spriteRenderer;
 
@@ -46,6 +50,19 @@ public class DragAndDrop : MonoBehaviour
     /// </summary>
     void Start()
     {
+        // Debug to ensure Start runs
+        Debug.Log("GameManager Start: Initializing ProgressBarManager...");
+
+        // Initialize the ProgressBarManager
+        if (progressBarManager != null)
+        {
+            progressBarManager.InitializeProgressBar(progressBarManager.progressBarStages.Length);
+            Debug.Log("ProgressBarManager successfully initialized.");
+        }
+        else
+        {
+            Debug.LogError("ProgressBarManager reference is missing in GameManager!");
+        }
         // Store the initial local position relative to the parent
         startLocalPosition = transform.localPosition;
 
@@ -108,37 +125,34 @@ public class DragAndDrop : MonoBehaviour
     }
 
     /// <summary>
-    /// Called when the user releases the object to stop dragging.
+    /// Called when the user releases the object to stop dragging,
+    /// if item is in correct slot update progress bar.
     /// </summary>
-    private void OnMouseUp()
+private void OnMouseUp()
+{
+    if (!isInCorrectSlot)
     {
-        if (!isInCorrectSlot)
+        isDragging = false;
+
+        if (isTouchingSlot && Vector3.Distance(transform.position, correctSlot.position) < snapDistance)
         {
-            isDragging = false;
-            Debug.Log($"Released at Position: {transform.position}");
+            transform.position = correctSlot.position;
+            transform.localScale = slotScale;
+            isInCorrectSlot = true;
 
-            // Check if the object is touching the correct slot and within snapping distance
-            if (isTouchingSlot && Vector3.Distance(transform.position, correctSlot.position) < snapDistance)
-            {
-                transform.position = correctSlot.position; // Snap to the slot
-                transform.localScale = slotScale; // Set the slot-specific scale
-                isInCorrectSlot = true;
-
-                Debug.Log($"Snapped to correct slot at Global Position: {correctSlot.position}");
-            }
-            else
-            {
-                // Reset to the original local position and scale
-                transform.localPosition = startLocalPosition;
-                transform.localScale = originalScale;
-
-                Debug.Log($"Returned to start Local Position: {startLocalPosition}");
-            }
-
-            // Reset sorting order to the original value
-            spriteRenderer.sortingOrder = originalSortingOrder;
+            // עדכון ה-Progress Bar
+            progressBarManager.AddProgress();
         }
+        else
+        {
+            transform.localPosition = startLocalPosition;
+            transform.localScale = originalScale;
+        }
+
+        spriteRenderer.sortingOrder = originalSortingOrder;
     }
+}
+
 
     /// <summary>
     /// Called when the object enters a trigger collider.
